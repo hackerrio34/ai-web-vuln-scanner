@@ -224,10 +224,7 @@ POST /api/scan
 ---
 
 ## 👨‍💻 Author
-
-**Your Name**  
-B.Tech / MCA — Cybersecurity Project  
-GitHub: [@your-username](https://github.com/your-username)
+Kishor A
 
 ---
 
