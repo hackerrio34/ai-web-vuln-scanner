@@ -2,6 +2,7 @@ import uuid
 from typing import Dict, Optional
 from app.schemas.scan import ScanRequest, ScanResponse, Finding
 from app.scanners.header_analyzer import analyze_headers
+from app.scanners.nmap_scanner import scan_ports
 
 _scans: Dict[str, ScanResponse] = {}
 
@@ -11,32 +12,37 @@ def run_mock_scan(request: ScanRequest) -> ScanResponse:
     # Header findings from real HTTP response
     header_findings = analyze_headers(str(request.target_url))
 
-    # Give each finding a unique id
-    findings_with_ids = []
-    for f in header_findings:
-        findings_with_ids.append(
-            Finding(
-                id=str(uuid.uuid4()),
-                type=f.type,
-                endpoint=f.endpoint,
-                description=f.description,
-                severity=f.severity,
-                mitigation=f.mitigation,
-            )
-        )
+    # Port scan findings (Nmap)
+    nmap_findings = scan_ports(str(request.target_url))
 
-    # If no findings, keep at least one example for now
-    if not findings_with_ids:
-        findings_with_ids.append(
-            Finding(
-                id=str(uuid.uuid4()),
-                type="HEADER_MISSING",
-                endpoint=str(request.target_url),
-                description="No obvious security header issues detected by basic checks.",
-                severity="Low",
-                mitigation="Consider adding standard security headers such as CSP, HSTS, X-Frame-Options and Referrer-Policy.",
-            )
+    findings_with_ids: list[Finding] = []
+
+    # Combine all raw findings
+    all_raw_findings = header_findings + nmap_findings
+
+    for f in all_raw_findings:
+        base = Finding(
+            id=str(uuid.uuid4()),
+            type=f.type,
+            endpoint=f.endpoint,
+            description=f.description,
+            severity=f.severity,
+            mitigation=f.mitigation,
         )
+        enriched = enrich_finding_with_ai(base)
+        findings_with_ids.append(enriched)
+
+    if not findings_with_ids:
+        fallback = Finding(
+            id=str(uuid.uuid4()),
+            type="HEADER_MISSING",
+            endpoint=str(request.target_url),
+            description="No obvious security header or port issues detected by basic checks.",
+            severity="Low",
+            mitigation="Consider adding standard security headers and closing unused ports.",
+        )
+        fallback = enrich_finding_with_ai(fallback)
+        findings_with_ids.append(fallback)
 
     response = ScanResponse(
         scan_id=scan_id,
