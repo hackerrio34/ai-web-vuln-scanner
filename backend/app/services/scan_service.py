@@ -3,6 +3,7 @@ from typing import Dict, Optional
 from app.schemas.scan import ScanRequest, ScanResponse, Finding
 from app.scanners.header_analyzer import analyze_headers
 from app.scanners.nmap_scanner import scan_ports
+from app.ai_engine.explanation_generator import enrich_finding_with_ai
 
 _scans: Dict[str, ScanResponse] = {}
 
